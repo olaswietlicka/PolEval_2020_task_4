@@ -8,16 +8,6 @@ from copy import copy
 from fuzzywuzzy import fuzz
 from sklearn.metrics import classification_report, f1_score
 
-'''
-plik_z_nazwiskami_kobiet = r'Wykaz_nazwisk_żeńskich_uwzgl_os__zmarłe_2020-01-22.csv'
-plik_z_nazwiskami_mezczyzn = r'Wykaz_nazwisk_męskich_uwzgl_os__zmarłe_2020-01-22.csv'
-plik_z_imionami_kobiet = r'lista_imion_żeńskich_os_żyjące_2020-01-21.csv'
-plik_z_imionami_mezczyzn = r'lista_imion_męskich_os_żyjące_2020-01-21.csv'
-male_surname = pd.read_csv(plik_z_nazwiskami_mezczyzn, sep=';')
-female_surname = pd.read_csv(plik_z_nazwiskami_kobiet, sep=';')
-male_name = pd.read_csv(plik_z_imionami_mezczyzn, sep=';')
-female_name = pd.read_csv(plik_z_imionami_kobiet, sep=';')
-'''
 
 def compare_two_dataframes(ground_truth_dataframe, result_dataframe, tokenizer):
     ground_truth_dataframe.astype({'id': 'int32'})
@@ -153,15 +143,6 @@ def get_key(my_dict, val):
     return 'no_key'
 
 def create_row(folder, text, predictions, tokenizer, columns):
-    # text to lista słów tworzących dany raport
-    # predictions to macierz, każdy wiersz odpowiada jednemu słowu z listy text, przy czym wartości w tym wierszu odpowiadają prawdopodobieństwom
-    #przygotujemy taką tabelę na podstawie wszystkich plików
-    # ground_truth_table = pd.read_csv(file, sep=';')
-    # predicted tags to będą wartości tagów - czyli wartości ze słownika z tagami wyjściowymi
-    # print(predictions)
-    # print(predictions.shape)
-    # print(len(text[0]))
-
     text[0] = text[0][7:len(text[0])-8]
     # print(len(text[0]))
 
@@ -181,20 +162,6 @@ def create_row(folder, text, predictions, tokenizer, columns):
     # print(predicted_tags)
     predicted_tags = np.hstack(predicted_tags)
     # print(set(predicted_tags))
-
-    '''
-    indexes = []
-    for j in range(predictions.shape[1]):
-        # print(j)
-        tmp_col = predictions[:, j]
-        print(tmp_col)
-        print(len(tmp_col))
-        # print(len(tmp_col))
-        result = np.where(tmp_col == np.amax(tmp_col))
-        print(result)
-        indexes.append(result[0])
-    print(indexes)
-    '''
 
     row = pd.DataFrame(data=[len(columns)*['UNKNOWN']], columns=columns)
     row['id'] = str(folder)
@@ -560,47 +527,6 @@ def prepare_data(file, folder_z_raportami, t, tags_tokenizer, seq_len, step, dat
         if len(employers)>max_numer_pracownika:
             max_numer_pracownika = len(employers)
 
-        '''
-        flat_list_mix = []
-        numer_pracownika = -1
-        seq_to_substitute_mix = []
-        for list_e, list_p in zip(employers_in_tokens, positions_in_tokens):
-            numer_pracownika += 1
-            flat_list_mix = flat_list_mix + list_e
-            seq_to_substitute_mix = seq_to_substitute_mix + ['human_' + str(numer_pracownika) + '_start']
-            for k in range(len(list_e)-1):
-                seq_to_substitute_mix = seq_to_substitute_mix + ['human_' + str(numer_pracownika) + '_continue']
-            flat_list_mix = flat_list_mix + list_p
-            seq_to_substitute_mix = seq_to_substitute_mix + ['position_' + str(numer_pracownika) + '_start']
-            for k in range(len(list_p)-1):
-                seq_to_substitute_mix = seq_to_substitute_mix + ['position_' + str(numer_pracownika) + '_continue']
-        # print(flat_list_mix)
-        # print(seq_to_substitute_mix)
-
-        numer_pracownika = -1
-        seq_to_substitute_p = []
-        for employer in employers_in_tokens:
-            numer_pracownika += 1
-            seq_to_substitute_p = seq_to_substitute_p + ['human_' + str(numer_pracownika) + '_start']
-            for k in range(len(employer)-1):
-                seq_to_substitute_p = seq_to_substitute_p + ['human_' + str(numer_pracownika) + '_continue']
-        numer_pracownika = -1
-        for position in positions_in_tokens:
-            numer_pracownika += 1
-            seq_to_substitute_p = seq_to_substitute_p + ['position_' + str(numer_pracownika) + '_start']
-            # print(position)
-            for k in range(len(position)-1):
-                seq_to_substitute_p = seq_to_substitute_p + ['position_' + str(numer_pracownika) + '_continue']
-        # print(seq_to_substitute_p)
-        flat_list_p = employers_in_tokens + positions_in_tokens
-        flat_list = []
-        for sublist in flat_list_p:
-            for list in sublist:
-                flat_list.append(list)
-        flat_list_p = flat_list
-        # print(flat_list_p)
-        # print(seq_to_substitute_p)
-        '''
         print('przygotowuję dane: {}/{}'.format(tmp_index + 1, len(ground_truth_table)))
         folder = os.path.join(folder_z_raportami, str(i))
         for file in os.listdir(folder):
@@ -616,23 +542,6 @@ def prepare_data(file, folder_z_raportami, t, tags_tokenizer, seq_len, step, dat
                 # print(full_raport_in_words)
                 texts_from_sequence = t.sequences_to_texts(full_raport_in_words)[0].split(" ")
                 sequence_to_return = ['o'] * len(texts_from_sequence)
-
-                # print(len(texts_from_sequence))
-
-                # for j in range(len(texts_from_sequence)-len(seq_to_substitute_p)):
-                #     text_part = full_raport_in_words[0][j:j + len(seq_to_substitute_p)]
-                #     if text_part == flat_list_mix:
-                #         tmp_idx = -1
-                #         print('Znalazłem pracownika i pozycję - w wersji mix')
-                #         for k in range(j,j+len(flat_list_mix)):
-                #             tmp_idx += 1
-                #             sequence_to_return[k] = seq_to_substitute_mix[tmp_idx]
-                #     elif text_part == flat_list_p:
-                #         tmp_idx = -1
-                #         print('Znalazłem pracownika i pozycję - w wersji pracownik,pracownik,... , pozycja, pozycja,...')
-                #         for k in range(j,j+len(flat_list_p)):
-                #             tmp_idx += 1
-                #             sequence_to_return[k] = seq_to_substitute_p[tmp_idx]
 
                 numer_pracownika = -1
                 for employer, position in zip(employers_in_tokens, positions_in_tokens):
@@ -811,328 +720,6 @@ def prepare_data(file, folder_z_raportami, t, tags_tokenizer, seq_len, step, dat
 
     return X_train, y_train
 
-def prepare_data_less_labels(file, folder_z_raportami, t, tags_tokenizer, seq_len, step, data_type):
-    ground_truth_table = pd.read_csv(file, sep=';')
-    # żeby było łatwiej analizować daty, to rozbijemy je na dzień, miesiąc i rok - bo tak też odbędzie się tokenizacja naszego tekstu,
-    # poza tym widzę, że raczej nie ma dat w formacie dd.mm.rrrr a raczej dd miesiąc rok
-    months = {'01': 'stycznia', '02': 'lutego', '03': 'marca', '04': 'kwietnia', '05': 'maja', '06': 'czerwca',
-              '07': 'lipca', '08': 'sierpnia', '09': 'września', '10': 'października', '11': 'listopada', '12': 'grudnia'}
-    months_simple = {'01': 'styczeń', '02': 'luty', '03': 'marzec', '04': 'kwiecień', '05': 'maj', '06': 'czerwiec',
-                     '07': 'lipiec', '08': 'sierpień', '09': 'wrzesień', '10': 'październik', '11': 'listopad', '12': 'grudzień'}
-    # print(ground_truth_table.head())
-    drawing_date_day = pd.Series([], dtype=str)
-    drawing_date_month_no = pd.Series([], dtype=str)
-    drawing_date_month = pd.Series([], dtype=str)
-    drawing_date_month_simple = pd.Series([], dtype=str)
-    drawing_date_year = pd.Series([], dtype=str)
-    period_from_day = pd.Series([], dtype=str)
-    period_from_month_no = pd.Series([], dtype=str)
-    period_from_month = pd.Series([], dtype=str)
-    period_from_month_simple = pd.Series([], dtype=str)
-    period_from_year = pd.Series([], dtype=str)
-    period_to_day = pd.Series([], dtype=str)
-    period_to_month_no = pd.Series([], dtype=str)
-    period_to_month = pd.Series([], dtype=str)
-    period_to_month_simple = pd.Series([], dtype=str)
-    period_to_year = pd.Series([], dtype=str)
-    postal_code_pre = pd.Series([], dtype=str)
-    postal_code_post = pd.Series([], dtype=str)
-    for i in range(len(ground_truth_table)):
-        # print(ground_truth_train['drawing_date'][i])
-        drawing_date_day[i] = ground_truth_table['drawing_date'][i][8:10]
-        drawing_date_month_no[i] = ground_truth_table['drawing_date'][i][5:7]
-        drawing_date_month[i] = months[ground_truth_table['drawing_date'][i][5:7]]
-        drawing_date_month_simple[i] = months_simple[ground_truth_table['drawing_date'][i][5:7]]
-        drawing_date_year[i] = ground_truth_table['drawing_date'][i][0:4]
-        period_from_day[i] = ground_truth_table['period_from'][i][8:10]
-        period_from_month_no[i] = ground_truth_table['period_from'][i][5:7]
-        period_from_month[i] = months[ground_truth_table['period_from'][i][5:7]]
-        period_from_month_simple[i] = months_simple[ground_truth_table['period_from'][i][5:7]]
-        period_from_year[i] = ground_truth_table['period_from'][i][0:4]
-        period_to_day[i] = ground_truth_table['period_to'][i][8:10]
-        period_to_month_no[i] = ground_truth_table['period_to'][i][5:7]
-        period_to_month[i] = months[ground_truth_table['period_to'][i][5:7]]
-        period_to_month_simple[i] = months_simple[ground_truth_table['period_to'][i][5:7]]
-        period_to_year[i] = ground_truth_table['period_to'][i][0:4]
-        postal_code_pre[i] = ground_truth_table['postal_code'][i][0:2]
-        postal_code_post[i] = ground_truth_table['postal_code'][i][3:6]
-    ground_truth_table.insert(3, 'drawing_date_day', drawing_date_day)
-    ground_truth_table.insert(4, 'drawing_date_month_no', drawing_date_month_no)
-    ground_truth_table.insert(5, 'drawing_date_month', drawing_date_month)
-    ground_truth_table.insert(6, 'drawing_date_month_simple', drawing_date_month_simple)
-    ground_truth_table.insert(7, 'drawing_date_year', drawing_date_year)
-
-    ground_truth_table.insert(9, 'period_from_day', period_from_day)
-    ground_truth_table.insert(10, 'period_from_month_no', period_from_month_no)
-    ground_truth_table.insert(11, 'period_from_month', period_from_month)
-    ground_truth_table.insert(12, 'period_from_month_simple', period_from_month_simple)
-    ground_truth_table.insert(13, 'period_from_year', period_from_year)
-
-    ground_truth_table.insert(15, 'period_to_day', period_to_day)
-    ground_truth_table.insert(16, 'period_to_month_no', period_to_month_no)
-    ground_truth_table.insert(17, 'period_to_month', period_to_month)
-    ground_truth_table.insert(18, 'period_to_month_simple', period_to_month_simple)
-    ground_truth_table.insert(19, 'period_to_year', period_to_year)
-
-    ground_truth_table.insert(21, 'postal_code_pre', postal_code_pre)
-    ground_truth_table.insert(22, 'postal_code_post', postal_code_post)
-
-    # print(tags_tokenizer.texts_to_sequences(['o']))
-
-    seq_to_train = []
-    seq_to_return = []
-    max_numer_pracownika = -1
-    for i in ground_truth_table.id:
-        tmp_index = ground_truth_table.index[ground_truth_table.id == i].tolist()[0]
-        # print(tmp_index)
-        company_name = ground_truth_table.company[tmp_index]
-        company_name, company_name_in_tokens, company_name_skip_sa, company_name_skip_sa_in_tokens = company_names(company_name, t)
-
-        city = ground_truth_table.city[tmp_index]
-        city, city_in_tokens = city_name(city, t)
-
-        street_name_tmp = ground_truth_table.street[tmp_index]
-        street_no = ground_truth_table.street_no[tmp_index]
-        street, street_no, street_in_tokens, street_no_in_tokens = street_name(street_name_tmp, street_no, t)
-
-        people = ground_truth_table.people[tmp_index]
-        employers, employers_in_tokens, positions, positions_in_tokens = people_finder(people, t)
-        if len(employers)>max_numer_pracownika:
-            max_numer_pracownika = len(employers)
-
-        '''
-        flat_list_mix = []
-        numer_pracownika = -1
-        seq_to_substitute_mix = []
-        for list_e, list_p in zip(employers_in_tokens, positions_in_tokens):
-            numer_pracownika += 1
-            flat_list_mix = flat_list_mix + list_e
-            seq_to_substitute_mix = seq_to_substitute_mix + ['human_' + str(numer_pracownika) + '_start']
-            for k in range(len(list_e)-1):
-                seq_to_substitute_mix = seq_to_substitute_mix + ['human_' + str(numer_pracownika) + '_continue']
-            flat_list_mix = flat_list_mix + list_p
-            seq_to_substitute_mix = seq_to_substitute_mix + ['position_' + str(numer_pracownika) + '_start']
-            for k in range(len(list_p)-1):
-                seq_to_substitute_mix = seq_to_substitute_mix + ['position_' + str(numer_pracownika) + '_continue']
-        # print(flat_list_mix)
-        # print(seq_to_substitute_mix)
-
-        numer_pracownika = -1
-        seq_to_substitute_p = []
-        for employer in employers_in_tokens:
-            numer_pracownika += 1
-            seq_to_substitute_p = seq_to_substitute_p + ['human_' + str(numer_pracownika) + '_start']
-            for k in range(len(employer)-1):
-                seq_to_substitute_p = seq_to_substitute_p + ['human_' + str(numer_pracownika) + '_continue']
-        numer_pracownika = -1
-        for position in positions_in_tokens:
-            numer_pracownika += 1
-            seq_to_substitute_p = seq_to_substitute_p + ['position_' + str(numer_pracownika) + '_start']
-            # print(position)
-            for k in range(len(position)-1):
-                seq_to_substitute_p = seq_to_substitute_p + ['position_' + str(numer_pracownika) + '_continue']
-        # print(seq_to_substitute_p)
-        flat_list_p = employers_in_tokens + positions_in_tokens
-        flat_list = []
-        for sublist in flat_list_p:
-            for list in sublist:
-                flat_list.append(list)
-        flat_list_p = flat_list
-        # print(flat_list_p)
-        # print(seq_to_substitute_p)
-        '''
-        print('przygotowuję dane: {}/{}'.format(tmp_index + 1, len(ground_truth_table)))
-        # print(i)
-        folder = os.path.join(folder_z_raportami, str(i))
-        for file in os.listdir(folder):
-            if file.endswith('.txt'):
-                file_to_read = os.path.join(folder, file)
-                # print(file_to_read)
-                # try:
-                file = open(file_to_read, 'r', encoding='utf-8')
-                full_raport = file.read()
-                file.close()
-                full_raport_in_words = t.texts_to_sequences([full_raport])
-                # print(full_raport_in_words)
-                texts_from_sequence = t.sequences_to_texts(full_raport_in_words)[0].split(" ")
-                sequence_to_return = ['o'] * len(texts_from_sequence)
-
-                # print(len(texts_from_sequence))
-
-                # for j in range(len(texts_from_sequence)-len(seq_to_substitute_p)):
-                #     text_part = full_raport_in_words[0][j:j + len(seq_to_substitute_p)]
-                #     if text_part == flat_list_mix:
-                #         tmp_idx = -1
-                #         print('Znalazłem pracownika i pozycję - w wersji mix')
-                #         for k in range(j,j+len(flat_list_mix)):
-                #             tmp_idx += 1
-                #             sequence_to_return[k] = seq_to_substitute_mix[tmp_idx]
-                #     elif text_part == flat_list_p:
-                #         tmp_idx = -1
-                #         print('Znalazłem pracownika i pozycję - w wersji pracownik,pracownik,... , pozycja, pozycja,...')
-                #         for k in range(j,j+len(flat_list_p)):
-                #             tmp_idx += 1
-                #             sequence_to_return[k] = seq_to_substitute_p[tmp_idx]
-
-                # numer_pracownika = -1
-                for employer, position in zip(employers_in_tokens, positions_in_tokens):
-                    # numer_pracownika += 1
-                    for j in range(len(texts_from_sequence) - len(employer) - len(position)):
-                        text_part = full_raport_in_words[0][j:j + len(employer) + len(position)]
-                        if (text_part == employer + position) and (
-                                sequence_to_return[j:j + len(employer) + len(position)] == ['o'] * (
-                                len(employer) + len(position))):
-                            # print('znalazłem pracownika i jego zawód')
-                            sequence_to_return[j] = 'human'
-                            for k in range(j + 1, j + len(employer)):
-                                sequence_to_return[k] = 'human'
-                            sequence_to_return[j + len(employer)] = 'position'
-                            for k in range(j + 1 + len(employer), j + len(employer) + len(position)):
-                                sequence_to_return[k] = 'position'
-
-                # numer_pracownika = -1
-                for employer in employers_in_tokens:
-                    # print(employer)
-                    # numer_pracownika += 1
-                    for j in range(len(texts_from_sequence)-len(employer)):
-                        text_part = full_raport_in_words[0][j:j + len(employer)]
-                        # print('*')
-                        # print(text_part)
-                        # print(employer)
-                        # print(sequence_to_return[j:j+len(employer)])
-                        # print(['o']*len(employer))
-                        if (text_part == employer) and (sequence_to_return[j:j+len(employer)]==['o']*len(employer)):
-                            # print('Znalazlem samego pracownika')
-                            sequence_to_return[j] = 'human'
-                            for k in range(j + 1, j + len(employer)):
-                                sequence_to_return[k] = 'human'
-                # numer_pracownika = -1
-                for position in positions_in_tokens:
-                    # numer_pracownika += 1
-                    # print(sequence_to_return[j:j+len(employer[0])])
-                    # print(['o']*len(position[0]))
-                    for j in range(len(texts_from_sequence)-len(position)):
-                        text_part = full_raport_in_words[0][j:j + len(position)]
-                        if (text_part == position) and (sequence_to_return[j:j+len(position)]==['o']*len(position)):
-                            # print('Znalazłem samą pozycję')
-                            sequence_to_return[j] = 'position'
-                            for k in range(j + 1, j + len(position)):
-                                sequence_to_return[k] = 'position'
-
-                # print(sequence_to_return)
-                for j in range(len(texts_from_sequence)-len(city_in_tokens[0])):
-                    # print(full_raport_in_words[0][j:j + len(city_in_tokens[0])])
-                    text_part = full_raport_in_words[0][j:j + len(city_in_tokens[0])]
-
-                    if (text_part == city_in_tokens[0]) and (len(city_in_tokens[0]) == 1):
-                        # print('znalazłem miasto')
-                        sequence_to_return[j] = 'city'
-                    elif text_part == city_in_tokens[0]:
-                        # print('znalazłem miasto wieloczłonowe')
-                        sequence_to_return[j] = 'city'
-                        for k in range(j+1,j+len(city_in_tokens[0])):
-                            sequence_to_return[k] = 'city'
-
-                for j in range((len(texts_from_sequence) - 2)):
-                    # print('Szukam dat')
-                    word_1 = texts_from_sequence[j]
-                    word_2 = texts_from_sequence[j + 1]
-                    word_3 = texts_from_sequence[j + 2]
-                    if ((str(word_1) == str(int(ground_truth_table.drawing_date_day.values[tmp_index])))
-                        or (str(word_1) == str(ground_truth_table.drawing_date_day.values[tmp_index]))) & \
-                            ((str(word_2) == str(ground_truth_table.drawing_date_month.values[tmp_index]))
-                             or (str(word_2) == str(ground_truth_table.drawing_date_month_simple.values[tmp_index]))
-                             or (str(word_2) == str(ground_truth_table.drawing_date_month_no.values[tmp_index]))) & \
-                            (str(word_3) == str(ground_truth_table.drawing_date_year.values[tmp_index])):
-                        # print('znalazłem datę - drawing date')
-                        sequence_to_return[j] = 'drawing_date_day'
-                        sequence_to_return[j + 1] = 'drawing_date_month'
-                        sequence_to_return[j + 2] = 'drawing_date_year'
-                    elif ((str(word_1) == str(int(ground_truth_table.period_from_day.values[tmp_index])))
-                          or (str(word_1) == str(ground_truth_table.period_from_day.values[tmp_index]))) & \
-                            ((str(word_2) == str(ground_truth_table.period_from_month.values[tmp_index]))
-                             or (str(word_2) == str(ground_truth_table.period_from_month_no.values[tmp_index]))
-                             or (str(word_2) == str(ground_truth_table.period_from_month_simple.values[tmp_index]))) & \
-                            (str(word_3) == str(ground_truth_table.period_from_year.values[tmp_index])):
-                        # print('znalazłem datę - period from')
-                        sequence_to_return[j] = 'period_from_day'
-                        sequence_to_return[j + 1] = 'period_from_month'
-                        sequence_to_return[j + 2] = 'period_from_year'
-                        # print(word_1, word_2, word_3)
-                    elif ((str(word_1) == str(int(ground_truth_table.period_to_day.values[tmp_index])))
-                          or (str(word_1) == str(ground_truth_table.period_to_day.values[tmp_index]))) & \
-                            ((str(word_2) == str(ground_truth_table.period_to_month.values[tmp_index]))
-                             or (str(word_2) == str(ground_truth_table.period_to_month_no.values[tmp_index]))
-                             or (str(word_2) == str(ground_truth_table.period_to_month_simple.values[tmp_index]))) & \
-                            (str(word_3) == str(ground_truth_table.period_to_year.values[0])):
-                        # print('znalazłem datę - period to')
-                        sequence_to_return[j] = 'period_to_day'
-                        sequence_to_return[j + 1] = 'period_to_month'
-                        sequence_to_return[j + 2] = 'period_to_year'
-                for j in range(len(texts_from_sequence) - 1):
-                    # print('Szukam kodu pocztowego')
-                    word_1 = texts_from_sequence[j]
-                    word_2 = texts_from_sequence[j + 1]
-                    if (word_1 == ground_truth_table.postal_code_pre[tmp_index]) & (
-                            word_2 == postal_code_post[tmp_index]):
-                        # print('Znalazłem kod pocztowy!')
-                        sequence_to_return[j] = 'postal_code_pre'
-                        sequence_to_return[j + 1] = 'postal_code_post'
-                for j in range(len(texts_from_sequence) - len(company_name_in_tokens[0])):
-                    # print('Szukam nazwy firmy')
-                    text_part = full_raport_in_words[0][j:j + len(company_name_in_tokens[0])]
-
-                    if (text_part == company_name_in_tokens[0]):
-                        # print('znalazłem nazwę firmy!')
-                        sequence_to_return[j] = 'company'
-                        for k in range(j + 1, j + len(company_name_in_tokens[0])):
-                            sequence_to_return[k] = 'company'
-                        sequence_to_return[j + len(company_name_in_tokens[0])] = 'company'
-                for j in range(len(texts_from_sequence) - len(street_in_tokens[0]) - len(street_no_in_tokens[0])):
-                    # print('Szukam adresu')
-                    text_part = full_raport_in_words[0][j:j + len(street_in_tokens[0]) + len(street_no_in_tokens[0])]
-                    if text_part == street_in_tokens[0] + street_no_in_tokens[0]:
-                        # print('znalazłem adres!')
-                        sequence_to_return[j] = 'street'
-                        # print(j, j+1, j+1+len(street_in_tokens[0]))
-                        # street_in_tokens[0]
-                        if len(street_in_tokens[0]) > 1:
-                            for k in range(j + 1, j + len(street_in_tokens[0])):
-                                sequence_to_return[k] = 'street'
-                        sequence_to_return[j + len(street_in_tokens[0])] = 'street_no'
-                        if len(street_no_in_tokens) > 1:
-                            for k in range(j + 1 + len(street_in_tokens[0]), j + len(street_no_in_tokens[0]) + len(street_in_tokens[0])):
-                                sequence_to_return[k] = 'street_no'
-
-                # print(sequence_to_return)
-                texts_from_sequence = create_sequences(full_raport_in_words, seq_len, step)
-                # print(sequence_to_return)
-                sequence_to_return = tags_tokenizer.texts_to_sequences([sequence_to_return])
-                # print(sequence_to_return)
-                # print(np.unique(sequence_to_return))
-                if len(sequence_to_return) != len(full_raport_in_words):
-                    print('error')
-                    print(len(sequence_to_return))
-                    print(len(full_raport_in_words))
-                sequence_to_return = create_sequences(sequence_to_return, seq_len, step)
-                seq_to_return.extend(sequence_to_return)
-                seq_to_train.extend(texts_from_sequence)
-
-    X_train = np.asarray(seq_to_train)
-    # print(X_train.shape)
-
-    y_train = np.asarray(seq_to_return)
-    # print(y_train.shape)
-
-    X_file = 'X_' + data_type + '_less_labels'
-    y_file = 'y_' + data_type + '_less_labels'
-    np.save(X_file, X_train)
-    np.save(y_file, y_train)
-
-    print('Najwięcej pracowników w zbiorze {} to: {}'. format(data_type, max_numer_pracownika))
-
-    return X_train, y_train
-
 
 def prepare_data_with_morfeusz(file, folder_z_raportami, t_token, t_basic, tags_tokenizer, seq_len, step, data_type):
     ground_truth_table = pd.read_csv(file, sep=';')
@@ -1227,58 +814,13 @@ def prepare_data_with_morfeusz(file, folder_z_raportami, t_token, t_basic, tags_
         if len(employers)>max_numer_pracownika:
             max_numer_pracownika = len(employers)
 
-        '''
-        flat_list_mix = []
-        numer_pracownika = -1
-        seq_to_substitute_mix = []
-        for list_e, list_p in zip(employers_in_tokens, positions_in_tokens):
-            numer_pracownika += 1
-            flat_list_mix = flat_list_mix + list_e
-            seq_to_substitute_mix = seq_to_substitute_mix + ['human_' + str(numer_pracownika) + '_start']
-            for k in range(len(list_e)-1):
-                seq_to_substitute_mix = seq_to_substitute_mix + ['human_' + str(numer_pracownika) + '_continue']
-            flat_list_mix = flat_list_mix + list_p
-            seq_to_substitute_mix = seq_to_substitute_mix + ['position_' + str(numer_pracownika) + '_start']
-            for k in range(len(list_p)-1):
-                seq_to_substitute_mix = seq_to_substitute_mix + ['position_' + str(numer_pracownika) + '_continue']
-        # print(flat_list_mix)
-        # print(seq_to_substitute_mix)
-
-        numer_pracownika = -1
-        seq_to_substitute_p = []
-        for employer in employers_in_tokens:
-            numer_pracownika += 1
-            seq_to_substitute_p = seq_to_substitute_p + ['human_' + str(numer_pracownika) + '_start']
-            for k in range(len(employer)-1):
-                seq_to_substitute_p = seq_to_substitute_p + ['human_' + str(numer_pracownika) + '_continue']
-        numer_pracownika = -1
-        for position in positions_in_tokens:
-            numer_pracownika += 1
-            seq_to_substitute_p = seq_to_substitute_p + ['position_' + str(numer_pracownika) + '_start']
-            # print(position)
-            for k in range(len(position)-1):
-                seq_to_substitute_p = seq_to_substitute_p + ['position_' + str(numer_pracownika) + '_continue']
-        # print(seq_to_substitute_p)
-        flat_list_p = employers_in_tokens + positions_in_tokens
-        flat_list = []
-        for sublist in flat_list_p:
-            for list in sublist:
-                flat_list.append(list)
-        flat_list_p = flat_list
-        # print(flat_list_p)
-        # print(seq_to_substitute_p)
-        '''
         print('przygotowuję dane: {}/{}'.format(tmp_index + 1, len(ground_truth_table)))
         # folder = os.path.join(folder_z_raportami, str(i))
         # for file in os.listdir(folder_z_raportami):
         # if file.endswith('.csv'):
         csv_file = str(i) + '.csv'
         file_to_read = os.path.join(folder_z_raportami, csv_file)
-        # print(file_to_read)
-        # try:
-        # file = open(file_to_read, 'r', encoding='utf-8')
-        # full_raport = file.read()
-        # file.close()
+
         full_raport = pd.read_csv(file_to_read, sep=',', usecols=['basic', 'token'], dtype='str')
         full_raport.fillna("na", inplace=True)
         # print(full_raport)
@@ -1290,11 +832,6 @@ def prepare_data_with_morfeusz(file, folder_z_raportami, t_token, t_basic, tags_
                 print(full_raport['token'][k])
         full_raport_basic = full_raport['basic'].tolist()
         full_raport_token = full_raport['token'].tolist()
-        # print(len(full_raport_basic))
-        # print(len(full_raport_token))
-        # print(type(full_raport_basic))
-        # print(full_raport)
-        # flaga = False
         for k in range(len(full_raport_basic)):
             tmp_basic = full_raport_basic[k]
             tmp_token = full_raport_token[k]
@@ -1304,28 +841,9 @@ def prepare_data_with_morfeusz(file, folder_z_raportami, t_token, t_basic, tags_
         full_raport_token = ' '.join(full_raport_token)
         full_raport_basic_in_words = t_basic.texts_to_sequences([full_raport_basic])
         full_raport_token_in_words = t_token.texts_to_sequences([full_raport_token])
-        # print(len(full_raport_basic_in_words[0]))
-        # print(len(full_raport_token_in_words[0]))
         texts_from_sequence = t_token.sequences_to_texts(full_raport_token_in_words)[0].split(" ")
-        # print(texts_from_sequence)
         sequence_to_return = ['o'] * len(texts_from_sequence)
         full_raport_in_words = full_raport_token_in_words
-        # print(len(texts_from_sequence))
-
-        # for j in range(len(texts_from_sequence)-len(seq_to_substitute_p)):
-        #     text_part = full_raport_in_words[0][j:j + len(seq_to_substitute_p)]
-        #     if text_part == flat_list_mix:
-        #         tmp_idx = -1
-        #         print('Znalazłem pracownika i pozycję - w wersji mix')
-        #         for k in range(j,j+len(flat_list_mix)):
-        #             tmp_idx += 1
-        #             sequence_to_return[k] = seq_to_substitute_mix[tmp_idx]
-        #     elif text_part == flat_list_p:
-        #         tmp_idx = -1
-        #         print('Znalazłem pracownika i pozycję - w wersji pracownik,pracownik,... , pozycja, pozycja,...')
-        #         for k in range(j,j+len(flat_list_p)):
-        #             tmp_idx += 1
-        #             sequence_to_return[k] = seq_to_substitute_p[tmp_idx]
 
         numer_pracownika = -1
         for employer, position in zip(employers_in_tokens, positions_in_tokens):
@@ -1433,18 +951,6 @@ def prepare_data_with_morfeusz(file, folder_z_raportami, t_token, t_basic, tags_
                 # print('Znalazłem kod pocztowy!')
                 sequence_to_return[j] = 'postal_code_pre'
                 sequence_to_return[j + 1] = 'postal_code_post'
-        # print(company_name_in_tokens)
-        # for j in range(len(texts_from_sequence) - len(company_name_in_tokens[0])):
-        #     # print('Szukam nazwy firmy')
-        #     text_part = full_raport_in_words[0][j:j + len(company_name_in_tokens[0])]
-        #     if (text_part == company_name_in_tokens[0]):
-        #         # print('znalazłem nazwę firmy!')
-        #         sequence_to_return[j] = 'company_start'
-        #         for k in range(j + 1, j + len(company_name_in_tokens[0])):
-        #             sequence_to_return[k] = 'company_continue'
-        #         sequence_to_return[j + len(company_name_in_tokens[0])] = 'company_continue'
-        #         # print(sequence_to_return[j:j+len(company_name_in_tokens[0])])
-        # # print(company_name_skip_sa)
         for j in range(len(texts_from_sequence) - len(company_name_skip_sa_in_tokens[0])):
             # print('Szukam nazwy firmy')
             text_part = full_raport_in_words[0][j:j + len(company_name_skip_sa_in_tokens[0])]

@@ -11,49 +11,6 @@ sgd = optimizers.SGD(lr=0.001)
 adam = optimizers.Adam(lr=0.0001, beta_1=0.9, beta_2=0.999)
 rmsprop = optimizers.RMSprop(lr = 0.001)
 
-def NER_PolEval(seq_len, tag_index, embedding_dim, word_index, embedding_matrix):
-    input = Input(shape=(seq_len,), dtype='int32')
-    middle_layer = Embedding(len(word_index)+1, embedding_dim,
-                             embeddings_initializer=initializers.Constant(embedding_matrix),
-                             trainable=False)(input)
-    middle_layer = Bidirectional(LSTM(128, return_sequences=True, dropout=0.2, recurrent_dropout=0.2))(middle_layer)
-    middle_layer = LSTM(64, return_sequences=True, dropout=0.2, recurrent_dropout=0.2)(middle_layer)
-    middle_layer = Dense(32, activation='relu')(middle_layer)
-    output = Dense(len(tag_index) + 1, activation='softmax')(middle_layer)
-    NER_PolEval_model = Model(input, output)
-    NER_PolEval_model.compile(loss=SparseCategoricalCrossentropy(from_logits=True),
-                              optimizer=rmsprop,
-                              metrics=['sparse_categorical_accuracy'])
-    NER_PolEval_model.summary()
-    # zapisanie struktury sieci do pliku:
-    # graph_file = 'NER_PolEval_seq2seq.png'
-    # plot_model(NER_PolEval_model, show_shapes=True, show_layer_names=True, to_file=graph_file)
-    return NER_PolEval_model
-
-def NER_PolEval_middle(seq_len_middle, tag_index, embedding_dim, word_index, embedding_matrix):
-    input = Input(shape=(seq_len_middle,), dtype='int32')
-    middle_layer = Embedding(len(word_index) + 1, embedding_dim, input_length=seq_len_middle,
-                             embeddings_initializer=initializers.Constant(embedding_matrix),
-                             trainable=True)(input)
-    middle_layer = Bidirectional(LSTM(128, return_sequences=True, dropout=0.2, recurrent_dropout=0.2))(middle_layer)
-    middle_layer = LSTM(128, return_sequences=True, dropout=0.2, recurrent_dropout=0.2)(middle_layer)
-    # middle_layer = Conv1D(128, 1, activation='sigmoid')(middle_layer)
-    # middle_layer = MaxPooling1D()(middle_layer)
-    middle_layer = Dense(64, activation='sigmoid')(middle_layer)
-    middle_layer = Flatten()(middle_layer)
-    # middle_layer = Dense(32, activation='relu')(middle_layer)
-    output = Dense(len(tag_index)+1, activation='softmax')(middle_layer)
-    NER_PolEval_model = Model(input, output)
-    # sgd = optimizers.SGD(lr=0.1)
-    NER_PolEval_model.compile(loss='mse',
-                              optimizer=rmsprop,
-                              metrics=['accuracy'])
-    NER_PolEval_model.summary()
-    # zapisanie struktury sieci do pliku:
-    # graph_file = 'NER_PolEval_middle.png'
-    # plot_model(NER_PolEval_model, show_shapes=False, show_layer_names=False, to_file=graph_file)
-    return NER_PolEval_model
-
 def NER_PolEval_middle_GRU(seq_len_middle, tag_index, embedding_dim, word_index, embedding_matrix):
     input = Input(shape=(seq_len_middle,), dtype='int32')
     middle_layer = Embedding(len(word_index) + 1, embedding_dim, input_length=seq_len_middle,
@@ -79,48 +36,7 @@ def NER_PolEval_middle_GRU(seq_len_middle, tag_index, embedding_dim, word_index,
     # plot_model(NER_PolEval_model, show_shapes=False, show_layer_names=False, to_file=graph_file)
     return NER_PolEval_model
 
-def NER_PolEval_Bert(seq_len_middle, tag_index):
-    input = Input(shape=(seq_len_middle,), dtype='int32')
-    middle_layer = TFBertModel.from_pretrained('bert-base-multilingual-uncased', trainable=False, num_labels=2*(len(tag_index)+1))(input)  # TFRobertaForTokenClassification.from_pretrained('roberta-base')
-    middle_layer = middle_layer[0]
-    middle_layer = Flatten()(middle_layer)
-    output = Dense(len(tag_index)+1, activation='sigmoid')(middle_layer)
-    model = Model(input, output)
-    # adam = optimizers.Adam(lr=0.00001)  # , beta_1=0.9, beta_2=0.999)
-    # rmsprop = optimizers.RMSprop(lr=0.01)
-    model.compile(optimizer='rmsprop', loss='mse', metrics=['accuracy'])
-    model.summary()
-    # graph_file = 'NER_PolEval_Bert.png'
-    # plot_model(model, show_shapes=True, show_layer_names=True, to_file=graph_file)
-    return model
 
-def NER_PolEval_RoBertA(seq_len_middle, tag_index):
-    input = Input(shape=(seq_len_middle,), dtype='int32')
-    middle_layer = TFRobertaForSequenceClassification.from_pretrained('roberta-base')(input)  # TFRobertaForTokenClassification.from_pretrained('roberta-base')
-    middle_layer = middle_layer[0]
-    middle_layer = Flatten()(middle_layer)
-    output = Dense(len(tag_index)+1, activation='sigmoid')(middle_layer)
-    model = Model(input, output)
-    adam = optimizers.Adam(lr=0.00001)  # , beta_1=0.9, beta_2=0.999)
-    model.compile(optimizer=adam, loss='mse', metrics=['accuracy'])
-    model.summary()
-    # graph_file = 'NER_PolEval_RoBertA.png'
-    # plot_model(model, show_shapes=True, show_layer_names=True, to_file=graph_file)
-    return model
-
-def NER_PolEval_XLNet(seq_len_middle, tag_index):
-    input = Input(shape=(seq_len_middle,), dtype='int32')
-    middle_layer = TFXLNetForSequenceClassification.from_pretrained('xlnet-large-cased')(input)  # TFRobertaForTokenClassification.from_pretrained('roberta-base')
-    middle_layer = middle_layer[0]
-    middle_layer = Flatten()(middle_layer)
-    output = Dense(len(tag_index)+1, activation='sigmoid')(middle_layer)
-    model = Model(input, output)
-    adam = optimizers.Adam(lr=0.00001)  # , beta_1=0.9, beta_2=0.999)
-    model.compile(optimizer=adam, loss='mse', metrics=['accuracy'])
-    model.summary()
-    # graph_file = 'NER_PolEval_XLNet.png'
-    # plot_model(model, show_shapes=True, show_layer_names=True, to_file=graph_file)
-    return model
 
 def model_akty(seq_len_middle, tag_index, embedding_dim, word_index, word_index_morf, embedding_matrix_1, embedding_matrix_2):
     ## main model

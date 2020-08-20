@@ -1,0 +1,16 @@
+*.egg
+*.png
+*.hdf5
+*.json
+*.csv
+*.tsv
+*.npy
+*.pickle
+*.zip
+*.txt
+*.rar
+*.out
+*.xlsx
+*.jpg
+prepare_csv_data.py
+modele_not_to_show.py
