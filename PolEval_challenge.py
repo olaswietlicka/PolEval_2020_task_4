@@ -249,10 +249,6 @@ tag_less_index = tags_less_tokenizer.word_index
 print('Unique tags:', len(tag_less_index))
 
 if load_training_data_from_file:
-    y_validate_15 = np.load('y_validate_15_token.npy')
-    X_validate_15_token = np.load('X_validate_15_token.npy')
-    X_validate_15_basic = np.load('X_validate_15_basic.npy')
-
     y_train_15 = np.load('y_train_15_token.npy')
     X_train_15_token = np.load('X_train_15_token.npy')
     X_train_15_basic = np.load('X_train_15_basic.npy')
@@ -262,15 +258,8 @@ else:
                                                                                       t_morf,
                                                                                       tags_tokenizer, seq_len_middle,
                                                                                       step, 'train_15')
-    X_validate_15_token, X_validate_15_basic, y_validate_15 = prepare_data_with_morfeusz(ground_truth_validate_file,
-                                                                                folder_morfeusz_validate, t_morf,
-                                                                                t_morf,
-                                                                                tags_tokenizer, seq_len_middle,
-                                                                                step, 'validate_15')
 
-X_train_15_token = np.vstack((X_train_15_token, X_validate_15_token))
-X_train_15_basic = np.vstack((X_train_15_basic, X_validate_15_basic))
-y_train_15 = np.vstack((y_train_15, y_validate_15))
+
 y_train_15 = y_train_15[:, middle_word]
 
 print(set(y_train_15))
@@ -332,7 +321,7 @@ if load_nn_from_file:
 
     # to jest model, który ma dwie nitki
     print('wczytuję model akty')
-    model_akty_test = load_model_from_files('model_PolEval_middle_double_GRU_bigger.json', 'model_PolEval_middle_double_GRU_bigger.hdf5')
+    model_akty_test = load_model_from_files('model_PolEval_middle_double_GRU_smaller.json', 'model_PolEval_middle_double_GRU_smaller.hdf5')
     model_akty_test.compile(loss='mse', optimizer=rmsprop, metrics=['accuracy'])
     model_akty_test.summary()
     print('wczytałem model akty')
@@ -348,7 +337,7 @@ else:
     history_akty = model_akty_test.fit([X_train_15_token, X_train_15_basic], y_train_15, batch_size=8192,
                                        validation_data=([X_test_15_token, X_test_15_basic], y_test_15), epochs=25,
                                        verbose=1)  # !!!!!
-    save_model_to_file(model_akty_test, 'PolEval_middle_double_GRU_bigger')
+    save_model_to_file(model_akty_test, 'PolEval_middle_double_GRU_smaller')
 
 # test dla dwóch nitek sieci neuronowej
 full_table = pd.DataFrame(columns=ground_truth_train.columns)
@@ -389,6 +378,6 @@ for file in os.listdir(folder_morfeusz_test):
         row_middle = create_row(id, full_raport_token_in_words, predictions_15, t_morf, ground_truth_train.columns)
         full_table = full_table.append(row_middle)
 
-full_table.to_csv('final_result_double_GRU_bigger.tsv', sep='\t', index=False)
+full_table.to_csv('final_result_double_GRU_smaller.tsv', sep='\t', index=False)
 
 
