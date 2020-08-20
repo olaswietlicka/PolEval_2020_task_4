@@ -51,12 +51,6 @@ folder_morfeusz_test = r'.\test'
 stopwords_file = open(stopwords_file, 'r', encoding='utf-8')
 stopwords = stopwords_file.readlines()
 stopwords_file.close()
-# print(stopwords)
-
-# ground_truth_train = ground_truth_train.head(1)
-# print(ground_truth_train.columns)
-
-# print(len(os.listdir(folder_z_raportami_test)))
 
 if create_new_tokenizer:
     print('Teraz przygotuję słownik (Tokenizer)')
@@ -249,135 +243,106 @@ tag_less_index = tags_less_tokenizer.word_index
 print('Unique tags:', len(tag_less_index))
 
 if load_training_data_from_file:
-    y_train_15 = np.load('y_train_15_token.npy')
-    X_train_15_token = np.load('X_train_15_token.npy')
-    X_train_15_basic = np.load('X_train_15_basic.npy')
+    X_train_15 = np.load('X_train_15.npy')
+    y_train_15 = np.load('y_train_15.npy')
+    X_validate_15 = np.load('X_validate_15.npy')
+    y_validate_15 = np.load('y_validate_15.npy')
+
 else:
-    X_train_15_token, X_train_15_basic, y_train_15 = prepare_data_with_morfeusz(ground_truth_train_file,
-                                                                                      folder_morfeusz_train, t_morf,
-                                                                                      t_morf,
-                                                                                      tags_tokenizer, seq_len_middle,
-                                                                                      step, 'train_15')
+    X_train_15, y_train_15 = prepare_data(ground_truth_train_file, folder_z_raportami_train, t, tags_tokenizer,
+                                          seq_len_middle, step, 'train_15')
+    X_validate_15, y_validate_15 = prepare_data(ground_truth_validate_file, folder_z_raportami_validate, t,
+                                                tags_tokenizer, seq_len_middle, step, 'validate_15')
 
 
+# dla pojedynczej ścieżki:
+X_train_15 = np.vstack((X_train_15, X_validate_15))
+y_train_15 = np.vstack((y_train_15, y_validate_15))
+
+print(X_train_15.shape)
+print(y_train_15.shape)
+
+# weźmiemy tylko informację o środkowym slowie (ponieważ prepare_data działa dla modelu seq2seq czyli dla zadanej długości sekwencji daje tą samą długość odpowiedzi)
 y_train_15 = y_train_15[:, middle_word]
 
 print(set(y_train_15))
 
-print(X_train_15_basic.shape)
-print(X_train_15_token.shape)
-print(y_train_15.shape)
-
-# indeksy w których są tylko nieinteresujące słowa:
+#indeksy w których są tylko nieinteresujące słowa:
 y_train_15_o_idx = np.where(y_train_15 == len(tags))[0]
 y_train_15_interesting = np.delete(y_train_15, y_train_15_o_idx, 0)
-X_train_15_token_interesting = np.delete(X_train_15_token, y_train_15_o_idx, 0)
-X_train_15_basic_interesting = np.delete(X_train_15_basic, y_train_15_o_idx, 0)
-X_train_15_basic_o = X_train_15_basic[y_train_15_o_idx, :]
-X_train_15_token_o = X_train_15_token[y_train_15_o_idx, :]
+X_train_15_interesting = np.delete(X_train_15, y_train_15_o_idx, 0)
+X_train_15_o = X_train_15[y_train_15_o_idx, :]
 y_train_15_o = y_train_15[y_train_15_o_idx]
 #
-print(X_train_15_token_interesting.shape)
-print(X_train_15_basic_interesting.shape)
+print(X_train_15_interesting.shape)
 print(y_train_15_interesting.shape)
-print(X_train_15_basic_o.shape)
-print(X_train_15_token_o.shape)
+print(X_train_15_o.shape)
 print(y_train_15_o.shape)
 #
-random_o = np.random.randint(low=y_train_15.shape[0], size=10 * X_train_15_basic_interesting.shape[0])
+random_o = np.random.randint(low=X_train_15.shape[0], size=10*X_train_15_interesting.shape[0])
 print(random_o)
 #
-X_train_15_basic_o = X_train_15_basic[random_o, :]
-X_train_15_token_o = X_train_15_token[random_o, :]
+X_train_15_o = X_train_15[random_o, :]
 y_train_15_o = y_train_15[random_o]
 #
-X_train_15_basic = np.vstack((X_train_15_basic_interesting, X_train_15_basic_o))
-X_train_15_token = np.vstack((X_train_15_token_interesting, X_train_15_token_o))
+X_train_15 = np.vstack((X_train_15_interesting, X_train_15_o))
 y_train_15 = np.hstack((y_train_15_interesting, y_train_15_o))
-print(X_train_15_basic.shape)
-print(X_train_15_token.shape)
+print(X_train_15.shape)
 print(y_train_15.shape)
 
+# y_validate_15 = y_validate_15[:, middle_word]
+
 y_train_15 = to_categorical(y_train_15)
+# y_validate_15 = to_categorical(y_validate_15)
 
-# dla basic i token:
-indices = np.arange(X_train_15_basic.shape[0])
-np.random.shuffle(indices)
-X_train_15_basic = X_train_15_basic[indices, :]
-X_train_15_token = X_train_15_token[indices, :]
-y_train_15 = y_train_15[indices]
-nb_validation_samples = int(0.2 * X_train_15_basic.shape[0])
+print('X_train_15 ma wymiar: {}'.format(X_train_15.shape))
+print('y_train_15 ma wymiar: {}'.format(y_train_15.shape))
+# print('X_validate_15 ma wymiar: {}'.format(X_validate_15.shape))
+# print('y_validate_15 ma wymiar: {}'.format(y_validate_15.shape))
 
-X_train_15_basic = X_train_15_basic[:-nb_validation_samples, :]
-X_train_15_token = X_train_15_token[:-nb_validation_samples, :]
-y_train_15 = y_train_15[:-nb_validation_samples]
-X_test_15_basic = X_train_15_basic[-nb_validation_samples:, :]
-X_test_15_token = X_train_15_token[-nb_validation_samples:, :]
-y_test_15 = y_train_15[-nb_validation_samples:]
+# X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+X_train_15, X_test_15, y_train_15, y_test_15 = train_test_split(X_train_15, y_train_15, test_size=0.2, shuffle=True, random_state=42)
 
 # tu albo wczytanie sieci neuronowej z pliku, albo trenowanie od zera:
 if load_nn_from_file:
     print('Wczytuję model sieci neuronowej z pliku')
 
-    # to jest model, który ma dwie nitki
-    print('wczytuję model akty')
-    model_akty_test = load_model_from_files('model_PolEval_middle_double_GRU_smaller.json', 'model_PolEval_middle_double_GRU_smaller.hdf5')
-    model_akty_test.compile(loss='mse', optimizer=rmsprop, metrics=['accuracy'])
-    model_akty_test.summary()
-    print('wczytałem model akty')
-
+    print('Wczytuję model middle')
+    model_middle = load_model_from_files('model_PolEval_middle_GRU_bigger.json', 'model_PolEval_middle_GRU_bigger.hdf5')
+    model_middle.compile(loss='mse', metrics=['accuracy'], optimizer=rmsprop)
+    print('Wczytałem model middle')
 else:
     print('wczytuję macierz Embedding...')
+    # word2vec_model = gensim.models.KeyedVectors.load_word2vec_format(file_with_embedding_matrix, binary=False)
     embedding_matrix = read_embedding(file_with_embedding_matrix, embedding_dim, t, stopwords)
     embedding_matrix_morf = read_embedding(file_with_embedding_matrix, embedding_dim, t_morf, stopwords)
     print('Shape of embedding matrix: ', embedding_matrix.shape)
 
-    model_akty_test = model_akty(seq_len_middle, tag_index, embedding_dim, word_index, word_index_morf,
-                                 embedding_matrix, embedding_matrix_morf)
-    history_akty = model_akty_test.fit([X_train_15_token, X_train_15_basic], y_train_15, batch_size=8192,
-                                       validation_data=([X_test_15_token, X_test_15_basic], y_test_15), epochs=25,
-                                       verbose=1)  # !!!!!
-    save_model_to_file(model_akty_test, 'PolEval_middle_double_GRU_smaller')
+    model_middle = NER_PolEval_middle_GRU(seq_len_middle, tag_index, embedding_dim, word_index, embedding_matrix)
+    history_middle = model_middle.fit(X_train_15, y_train_15, batch_size=16384, epochs=25,
+                                      validation_data=(X_test_15, y_test_15), verbose=1)#, callbacks=callbacks_list)
+    save_model_to_file(model_middle, 'PolEval_middle_GRU_bigger')
 
-# test dla dwóch nitek sieci neuronowej
+
 full_table = pd.DataFrame(columns=ground_truth_train.columns)
-nr_pliku = 0
-for file in os.listdir(folder_morfeusz_test):
-    nr_pliku = nr_pliku + 1
-    print('Obliczam dane: {}/{}'.format(nr_pliku, len(os.listdir(folder_z_raportami_test))))
-    if file.endswith('.csv'):
-        file_to_read = os.path.join(folder_morfeusz_test, file)
-        full_raport = pd.read_csv(file_to_read, sep=',', usecols=['basic', 'token'], dtype='str')
-        full_raport.fillna("na", inplace=True)
-        # print(full_raport)
-        for k in range(len(full_raport)):
-            if '_' in full_raport['basic'][k]:
-                full_raport['basic'][k] = full_raport['token'][k]
-            if len(full_raport['basic'][k].split(" ")) != len(full_raport['token'][k].split(" ")):
-                print(full_raport['basic'][k])
-                print(full_raport['token'][k])
-        full_raport_basic = full_raport['basic'].tolist()
-        full_raport_token = full_raport['token'].tolist()
-        for k in range(len(full_raport_basic)):
-            tmp_basic = full_raport_basic[k]
-            tmp_token = full_raport_token[k]
-            if len(t_morf.texts_to_sequences([tmp_basic])[0]) != len(t_morf.texts_to_sequences([tmp_token])[0]):
-                full_raport_basic[k] = full_raport_token[k]
-        full_raport_basic = ' '.join(full_raport_basic)
-        full_raport_token = ' '.join(full_raport_token)
-        full_raport_basic_in_words = t_morf.texts_to_sequences([full_raport_basic])
-        full_raport_token_in_words = t_morf.texts_to_sequences([full_raport_token])
+full_table_middle = pd.DataFrame(columns=ground_truth_train.columns)
+k = 0
 
-        basic = create_sequences(full_raport_basic_in_words, seq_len_middle, step)
-        token = create_sequences(full_raport_token_in_words, seq_len_middle, step)
-        basic = np.asarray(basic)
-        token = np.asarray(token)
+#test
+for folder in os.listdir(folder_z_raportami_test):
+    k = k+1
+    print('Obliczam dane: {}/{}'.format(k, len(os.listdir(folder_z_raportami_test))))
+    # print('Obliczam dane: {}/{}'.format(k, len(ground_truth_validate)))
+    for file in os.listdir(os.path.join(folder_z_raportami_test,folder)):
+        if file.endswith('.txt'):
+            file_to_read = os.path.join(folder_z_raportami_test, folder, file)
+            file = open(file_to_read, 'r', encoding='utf-8')
+            full_raport = file.read()
+            file.close()
+            full_raport_in_words = t.texts_to_sequences([full_raport])
+            texts_from_sequence = create_sequences(full_raport_in_words, seq_len_middle, step)
+            predictions_15 = model_middle.predict(texts_from_sequence, batch_size=1024)
+            row_middle = create_row(folder, full_raport_in_words, predictions_15, t, ground_truth_train.columns)
+            full_table = full_table.append(row_middle)
 
-        predictions_15 = model_akty_test.predict([token, basic], batch_size=1024)
-        id = os.path.splitext(file)[0]
-        row_middle = create_row(id, full_raport_token_in_words, predictions_15, t_morf, ground_truth_train.columns)
-        full_table = full_table.append(row_middle)
-
-full_table.to_csv('final_result_double_GRU_smaller.tsv', sep='\t', index=False)
-
-
+full_table.to_csv('final_result_middle_GRU_bigger.tsv', sep='\t', index=False)
