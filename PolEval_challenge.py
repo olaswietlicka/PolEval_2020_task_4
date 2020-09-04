@@ -28,7 +28,7 @@ create_new_tokenizer = False
 create_new_tokenizer_morfeusz = False
 load_training_data_from_file = True
 load_validation_data_from_file = True
-embedding_dim = 100
+embedding_dim = 300
 
 file_with_embedding_matrix = r'nkjp-forms-restricted-' + str(embedding_dim) + '-skipg-ns.txt'
 checkpoint_weights = "NER_weights.hdf5"
