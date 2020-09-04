@@ -7,6 +7,7 @@ from tensorflow.keras.preprocessing.text import text_to_word_sequence
 from copy import copy
 from fuzzywuzzy import fuzz
 from sklearn.metrics import classification_report, f1_score
+import re
 
 
 def compare_two_dataframes(ground_truth_dataframe, result_dataframe, tokenizer):
@@ -14,6 +15,9 @@ def compare_two_dataframes(ground_truth_dataframe, result_dataframe, tokenizer):
     result_dataframe.astype({'id': 'int32'})
     ground_truth_dataframe.sort_values(by=['id'], inplace=True, ignore_index=True)
     result_dataframe.sort_values(by=['id'], inplace=True, ignore_index=True)
+
+    print(ground_truth_dataframe.head())
+    print(result_dataframe.head())
 
     # Poprawimy oryginalną ground_truth_table, żeby ulica nie zawierała numeru
     for j in range(len(ground_truth_dataframe)):
@@ -115,6 +119,7 @@ def find_long_name(predictions, predicted_tags, tokenizer, text, numbers):
         if predicted_tags[j] == numbers[0] and predictions[j,numbers[0]] == np.max(predictions[:,numbers[0]]):
             indeks = j
             sequence = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[j])].capitalize()
+            # sequence = text[j].capitalize()
             # print(sequence)
             # print(text[j])
             # break
@@ -132,6 +137,37 @@ def find_long_name(predictions, predicted_tags, tokenizer, text, numbers):
             break
     # print(count)
     for b in range(count):
+        # sequence = sequence + ' ' + text[indeks + b + 1].capitalize()
+        sequence = sequence + ' ' + list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[indeks + b + 1])].capitalize()
+    # print(sequence)
+    return sequence
+
+def find_long_name_xgboost(predicted_tags, tokenizer, text, numbers):
+    # numbers to indeksy, które będziemy sprawdzać.
+    indeks = None
+    for j in range(len(predicted_tags)):
+        if predicted_tags[j] == numbers[0]:# and predictions[j,numbers[0]] == np.max(predictions[:,numbers[0]]):
+            indeks = j
+            sequence = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[j])].capitalize()
+            # sequence = text[j].capitalize()
+            # print(sequence)
+            # print(text[j])
+            # break
+    if indeks is None:
+        return 'UNKNOWN'
+    # if numbers[1] not in set(predicted_tags):
+    #     return sequence
+    i = indeks+1
+    count = 0
+    while i < len(predicted_tags):
+        if predicted_tags[i] == numbers[1]:
+            count += 1
+            i += 1
+        else:
+            break
+    # print(count)
+    for b in range(count):
+        # sequence = sequence + ' ' + text[indeks + b + 1].capitalize()
         sequence = sequence + ' ' + list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[indeks + b + 1])].capitalize()
     # print(sequence)
     return sequence
@@ -142,9 +178,28 @@ def get_key(my_dict, val):
              return key
     return 'no_key'
 
-def create_row(folder, text, predictions, tokenizer, columns):
+def create_row(folder, text_in_words, text, predictions, tokenizer, columns):
     text[0] = text[0][7:len(text[0])-8]
+    print(predictions.shape)
     # print(len(text[0]))
+    missing_indexes = [0, 4, 18, 19, 65, 67, 68]
+    for ind in missing_indexes:
+        predictions = np.insert(predictions, ind, 0, axis=1)
+
+    # mapping = {1: 1, 2: 2, 3: 3, 4: 5, 5: 6, 6: 7, 7: 8, 8: 9, 9: 10, 10: 11, 11: 12, 12: 13, 13: 14, 14: 15, 15: 16,
+    #            16: 17, 17: 20, 18: 21, 19: 22, 20: 23, 21: 24, 22: 25, 23: 26, 24: 27, 25: 28, 26: 29, 27: 30, 28: 31,
+    #            29: 32, 30: 33, 31: 34, 32: 35, 33: 36, 34: 37, 35: 38, 36: 39, 37: 40, 38: 41, 39: 42, 40: 43, 41: 44,
+    #            42: 45, 43: 46, 44: 47, 45: 48, 46: 49, 47: 50, 48: 51, 49: 52, 50: 53, 51: 54, 52: 55, 53: 56, 54: 57,
+    #            55: 58, 56: 59, 57: 60, 58: 61, 59: 62, 60: 63, 61: 64, 62: 66, 63: 69}
+    # mapping = {0: 1, 1: 2, 2: 3, 3: 5, 4: 6, 5: 7, 6: 8, 7: 9, 8: 10, 9: 11, 10: 12, 11: 13, 12: 14, 13: 15, 14: 16,
+    #            15: 17, 16: 20, 17: 21, 18: 22, 19: 23, 20: 24, 21: 25, 22: 26, 23: 27, 24: 28, 25: 29, 26: 30, 27: 31,
+    #            28: 32, 29: 33, 30: 34, 31: 35, 32: 36, 33: 37, 34: 38, 35: 39, 36: 40, 37: 41, 38: 42, 39: 43, 40: 44,
+    #            41: 45, 42: 46, 43: 47, 44: 48, 45: 49, 46: 50, 47: 51, 48: 52, 49: 53, 50: 54, 51: 55, 52: 56, 53: 57,
+    #            54: 58, 55: 59, 56: 60, 57: 61, 58: 62, 59: 63, 60: 64, 61: 66, 62: 69}
+    # new_tags = [1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+    #             31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
+    #             56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 69]
+
 
     predicted_tags = []
     for i in range(predictions.shape[0]):
@@ -161,16 +216,23 @@ def create_row(folder, text, predictions, tokenizer, columns):
     # print(predicted_tags)
     # print(predicted_tags)
     predicted_tags = np.hstack(predicted_tags)
-    # print(set(predicted_tags))
+    # predicted_tags = [mapping[j] for j in predicted_tags]
+    # predicted_tags = np.asarray(predicted_tags)
+    # print(predicted_tags)
+    print(predicted_tags)
+    # print(type(predicted_tags))
+    print(set(predicted_tags))
 
     row = pd.DataFrame(data=[len(columns)*['UNKNOWN']], columns=columns)
     row['id'] = str(folder)
     for j in range(len(predicted_tags)):
-        if predicted_tags[j]==20 and predictions[j,20]==np.max(predictions[:,20]):
+        if predicted_tags[j]==20:# and predictions[j,20]==np.max(predictions[:,20]):
             # print('znalazłem miasto!')
             # print(text[0][j])
             word = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
-            # print(word)
+            # word = text[0][j]
+            print(word)
+            print(predictions[j,20])
             row['city'] = word.capitalize()
             break
 
@@ -179,6 +241,7 @@ def create_row(folder, text, predictions, tokenizer, columns):
               'października': '10', 'listopada': '11', 'grudnia': '12'}
 
     drawing_date = 'UNKNOWN'
+    period_to_year = 3000
 
     for j in range(len(predicted_tags)-3):
         if (predicted_tags[j:j+3]==[7, 8, 9]).all() and (predictions[j,7]==np.max(predictions[:,7]) or predictions[j,8]==np.max(predictions[:,8]) or predictions[j,9]==np.max(predictions[:,9])):
@@ -186,6 +249,9 @@ def create_row(folder, text, predictions, tokenizer, columns):
             year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j+2])]
             month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j+1])]
             day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # year = text[0][j+2]
+            # month = text[0][j+1]
+            # day = text[0][j]
             if month in months:
                 month = months[month]
             if len(day) == 1:
@@ -198,6 +264,9 @@ def create_row(folder, text, predictions, tokenizer, columns):
             year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
             month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
             day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            # year = text[0][j]
+            # month = text[0][j + 1]
+            # day = text[0][j + 2]
             if month in months:
                 month = months[month]
             if len(day) == 1:
@@ -205,49 +274,66 @@ def create_row(folder, text, predictions, tokenizer, columns):
             row['drawing_date'] = str(year) + '-' + str(month) + '-' + str(day)
             drawing_date = str(year) + '-' + str(month) + '-' + str(day)
             # print(str(day) + '-' + str(month) + '-' + str(year))
-        elif (predicted_tags[j:j + 3] == [10, 11, 12]).all() and (predictions[j,10]==np.max(predictions[:,10]) or predictions[j,11]==np.max(predictions[:,11]) or predictions[j,12]==np.max(predictions[:,12])):
-            # print('znalazłem period_from')
-            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
-            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
-            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
-            if month in months:
-                month = months[month]
-            if len(day) == 1:
-                day = '0' + day
-            row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
-            # print(str(day) + '-' + str(month) + '-' + str(year))
-        elif (predicted_tags[j:j + 3] == [12, 11, 10]).all() and (predictions[j, 10] == np.max(predictions[:, 10]) or predictions[j, 11] == np.max(predictions[:, 11]) or predictions[j, 12] == np.max(predictions[:, 12])):
-            # print('znalazłem period_from')
-            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
-            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
-            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
-            if month in months:
-                month = months[month]
-            if len(day) == 1:
-                day = '0' + day
-            row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
-            # print(str(day) + '-' + str(month) + '-' + str(year))
         elif (predicted_tags[j:j + 3] == [13, 14, 15]).all() and (predictions[j,13]==np.max(predictions[:,13]) or predictions[j,14]==np.max(predictions[:,14]) or predictions[j,15]==np.max(predictions[:,15])):
             # print('znalazłem period_to')
             year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
             month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
             day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # year = text[0][j + 2]
+            # month = text[0][j + 1]
+            # day = text[0][j]
             if month in months:
                 month = months[month]
             if len(day) == 1:
                 day = '0' + day
             row['period_to'] = str(year) + '-' + str(month) + '-' + str(day)
+            period_to_year = year
             # print(str(day) + '-' + str(month) + '-' + str(year))
         elif (predicted_tags[j:j + 3] == [15, 14, 13]).all() and (predictions[j, 13] == np.max(predictions[:, 13]) or predictions[j, 14] == np.max(predictions[:, 14]) or predictions[j, 15] == np.max(predictions[:, 15])):
             # print('znalazłem period_to')
             year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
             month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
             day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            # year = text[0][j]
+            # month = text[0][j + 1]
+            # day = text[0][j + 2]
             if month in months:
                 month = months[month]
             if len(day) == 1:
                 day = '0' + day
             row['period_to'] = str(year) + '-' + str(month) + '-' + str(day)
+            period_to_year = year
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+    for j in range(len(predicted_tags)-3):
+        if (predicted_tags[j:j + 3] == [10, 11, 12]).all() and (predictions[j,10]==np.max(predictions[:,10]) or predictions[j,11]==np.max(predictions[:,11]) or predictions[j,12]==np.max(predictions[:,12]))\
+                and int(predicted_tags[j+2])<=int(period_to_year):
+            # print('znalazłem period_from')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # year = text[0][j + 2]
+            # month = text[0][j + 1]
+            # day = text[0][j]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+        elif (predicted_tags[j:j + 3] == [12, 11, 10]).all() and (predictions[j, 10] == np.max(predictions[:, 10]) or predictions[j, 11] == np.max(predictions[:, 11])
+                                                                  or predictions[j, 12] == np.max(predictions[:, 12])) and int(predicted_tags[j])<=int(period_to_year):
+            # print('znalazłem period_from')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            # year = text[0][j]
+            # month = text[0][j + 1]
+            # day = text[0][j + 2]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
             # print(str(day) + '-' + str(month) + '-' + str(year))
 
     if drawing_date=='UNKNOWN':
@@ -257,13 +343,15 @@ def create_row(folder, text, predictions, tokenizer, columns):
         for j in range(len(predicted_tags)):
             if predicted_tags[j]==7 and predictions[j,7]==np.max(predictions[:,7]):
                 day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # day = text[0][j]
             elif predicted_tags[j]==8 and predictions[j,8]==np.max(predictions[:,9]):
                 month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # month = text[0][j]
             elif predicted_tags[j]==9 and predictions[j,9]==np.max(predictions[:,9]):
                 year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # year  = text[0][j]
         row['drawing_date'] = str(year) + '-' + str(month) + '-' + str(day)
         drawing_date = str(year) + '-' + str(month) + '-' + str(day)
-
 
     if row['period_from'].values=='UNKNOWN':
         day = '01'
@@ -272,10 +360,13 @@ def create_row(folder, text, predictions, tokenizer, columns):
         for j in range(len(predicted_tags)):
             if predicted_tags[j]==10 and predictions[j,10]==np.max(predictions[:,10]):
                 day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # day = text[0][j]
             elif predicted_tags[j]==11 and predictions[j,11]==np.max(predictions[:,11]):
                 month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # month = text[0][j]
             elif predicted_tags[j]==12 and predictions[j,12]==np.max(predictions[:,12]):
                 year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # year = text[0][j]
         row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
 
     if row['period_to'].values=='UNKNOWN':
@@ -285,10 +376,13 @@ def create_row(folder, text, predictions, tokenizer, columns):
         for j in range(len(predicted_tags)):
             if predicted_tags[j]==13 and predictions[j,13]==np.max(predictions[:,13]):
                 day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # day = text[0][j]
             elif predicted_tags[j]==14 and predictions[j,14]==np.max(predictions[:,14]):
                 month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # month = text[0][j]
             elif predicted_tags[j]==15 and predictions[j,15]==np.max(predictions[:,15]):
                 year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # year = text[0][j]
         row['period_to'] = str(year) + '-' + str(month) + '-' + str(day)
 
     for j in range(len(predicted_tags)-2):
@@ -296,12 +390,20 @@ def create_row(folder, text, predictions, tokenizer, columns):
             # print('znalazłem kod pocztowy')
             pre = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
             post = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j+1])]
+            # pre = text[0][j]
+            # post = text[0][j+1]
             row['postal_code'] = str(pre) + '-' + str(post)
             # print(str(pre) + '-' + str(post))
     if row['postal_code'].values=='UNKNOWN':
         row['postal_code'] = '00-000'
 
     street = find_long_name(predictions, predicted_tags, tokenizer, text[0], [1, 2])
+    skroty = ["ul ", "UL ", "Os ", "os ", "al ", "Al ", "pl ", "Pl ", "s "]
+    for skrot in skroty:
+        if skrot in street:
+            nowy_skrot = skrot.replace(' ', '') + '. '
+            street.replace(skrot, nowy_skrot)
+            break
     row['street'] = street.title()
 
     street_no = find_long_name(predictions, predicted_tags, tokenizer, text[0], [3, 4])
@@ -350,6 +452,309 @@ def create_row(folder, text, predictions, tokenizer, columns):
     row['people'] = people
 
     # print(row)
+    return row
+
+def create_row_xgboost(folder, text_in_words, text, predicted_tags, tokenizer, columns):
+    text[0] = text[0][7:len(text[0])-8]
+    # print(len(text[0]))
+
+    '''
+    predicted_tags = []
+    for i in range(predictions.shape[0]):
+        # print(predictions[i, :, :].shape)
+        if predictions.shape == 3:
+            new_row = np.argmax(predictions[i, :, :], axis=1)
+        else:
+            new_row = np.argmax(predictions[i, :])
+        # print(new_row.shape)
+        predicted_tags.append(new_row)
+        # print('*')
+        # print(predictions[i, :].shape)
+        # print(new_row)
+    # print(predicted_tags)
+    # print(predicted_tags)
+    predicted_tags = np.hstack(predicted_tags)
+    # print(set(predicted_tags))
+    '''
+
+    row = pd.DataFrame(data=[len(columns)*['UNKNOWN']], columns=columns)
+    row['id'] = str(folder)
+    for j in range(len(predicted_tags)):
+        if predicted_tags[j]==20:# and predictions[j,20]==np.max(predictions[:,20]):
+            # print('znalazłem miasto!')
+            # print(text[0][j])
+            word = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # word = text[0][j]
+            print(word)
+            row['city'] = word.capitalize()
+            break
+
+    months = {'styczeń': '01', 'luty': '02', 'marzec': '03', 'kwiecień': '04', 'maj': '05', 'czerwiec': '06', 'lipiec': '07', 'sierpień': '08', 'wrzesień': '09', 'październik': '10', 'listopad': '11',
+              'grudzień': '12', 'stycznia': '01', 'lutego': '02', 'marca': '03', 'kwietnia': '04', 'maja': '05', 'czerwca': '06', 'lipca': '07', 'sierpnia': '08', 'września': '09',
+              'października': '10', 'listopada': '11', 'grudnia': '12'}
+
+    drawing_date = 'UNKNOWN'
+    period_to_year = 3000
+
+    for j in range(len(predicted_tags)-3):
+        if (predicted_tags[j:j+3]==[7, 8, 9]).all():# and (predictions[j,7]==np.max(predictions[:,7]) or predictions[j,8]==np.max(predictions[:,8]) or predictions[j,9]==np.max(predictions[:,9])):
+            # print('znalazłem drawing_date')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j+2])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j+1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # year = text[0][j+2]
+            # month = text[0][j+1]
+            # day = text[0][j]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['drawing_date']= str(year) + '-' + str(month) + '-' + str(day)
+            drawing_date = str(year) + '-' + str(month) + '-' + str(day)
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+        elif (predicted_tags[j:j+3]==[9, 8, 7]).all() :#and (predictions[j,7]==np.max(predictions[:,7]) or predictions[j,8]==np.max(predictions[:,8]) or predictions[j,9]==np.max(predictions[:,9])):
+            # print('znalazłem drawing_date')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            # year = text[0][j]
+            # month = text[0][j + 1]
+            # day = text[0][j + 2]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['drawing_date'] = str(year) + '-' + str(month) + '-' + str(day)
+            drawing_date = str(year) + '-' + str(month) + '-' + str(day)
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+        elif (predicted_tags[j:j + 3] == [13, 14, 15]).all():# and (predictions[j,13]==np.max(predictions[:,13]) or predictions[j,14]==np.max(predictions[:,14]) or predictions[j,15]==np.max(predictions[:,15])):
+            # print('znalazłem period_to')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # year = text[0][j + 2]
+            # month = text[0][j + 1]
+            # day = text[0][j]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['period_to'] = str(year) + '-' + str(month) + '-' + str(day)
+            period_to_year = year
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+        elif (predicted_tags[j:j + 3] == [15, 14, 13]).all():# and (predictions[j, 13] == np.max(predictions[:, 13]) or predictions[j, 14] == np.max(predictions[:, 14]) or predictions[j, 15] == np.max(predictions[:, 15])):
+            # print('znalazłem period_to')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            # year = text[0][j]
+            # month = text[0][j + 1]
+            # day = text[0][j + 2]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['period_to'] = str(year) + '-' + str(month) + '-' + str(day)
+            period_to_year = year
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+    for j in range(len(predicted_tags)-3):
+        if (predicted_tags[j:j + 3] == [10, 11, 12]).all():# and (predictions[j,10]==np.max(predictions[:,10]) or predictions[j,11]==np.max(predictions[:,11]) or predictions[j,12]==np.max(predictions[:,12]))\
+                #and int(predicted_tags[j+2])<=int(period_to_year):
+            # print('znalazłem period_from')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            # year = text[0][j + 2]
+            # month = text[0][j + 1]
+            # day = text[0][j]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+        elif (predicted_tags[j:j + 3] == [12, 11, 10]).all():# and (predictions[j, 10] == np.max(predictions[:, 10]) or predictions[j, 11] == np.max(predictions[:, 11])
+                                                             #     or predictions[j, 12] == np.max(predictions[:, 12])) and int(predicted_tags[j])<=int(period_to_year):
+            # print('znalazłem period_from')
+            year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 1])]
+            day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j + 2])]
+            # year = text[0][j]
+            # month = text[0][j + 1]
+            # day = text[0][j + 2]
+            if month in months:
+                month = months[month]
+            if len(day) == 1:
+                day = '0' + day
+            row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
+            # print(str(day) + '-' + str(month) + '-' + str(year))
+
+    if drawing_date=='UNKNOWN':
+        day = '01'
+        month = '01'
+        year = '2000'
+        for j in range(len(predicted_tags)):
+            if predicted_tags[j]==7:# and predictions[j,7]==np.max(predictions[:,7]):
+                day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # day = text[0][j]
+            elif predicted_tags[j]==8:# and predictions[j,8]==np.max(predictions[:,9]):
+                month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # month = text[0][j]
+            elif predicted_tags[j]==9:# and predictions[j,9]==np.max(predictions[:,9]):
+                year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # year  = text[0][j]
+        row['drawing_date'] = str(year) + '-' + str(month) + '-' + str(day)
+        drawing_date = str(year) + '-' + str(month) + '-' + str(day)
+
+    if row['period_from'].values=='UNKNOWN':
+        day = '01'
+        month = '01'
+        year = '2000'
+        for j in range(len(predicted_tags)):
+            if predicted_tags[j]==10:# and predictions[j,10]==np.max(predictions[:,10]):
+                day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # day = text[0][j]
+            elif predicted_tags[j]==11:# and predictions[j,11]==np.max(predictions[:,11]):
+                month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # month = text[0][j]
+            elif predicted_tags[j]==12:# and predictions[j,12]==np.max(predictions[:,12]):
+                year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # year = text[0][j]
+        row['period_from'] = str(year) + '-' + str(month) + '-' + str(day)
+
+    if row['period_to'].values=='UNKNOWN':
+        day = '01'
+        month = '01'
+        year = '2000'
+        for j in range(len(predicted_tags)):
+            if predicted_tags[j]==13:# and predictions[j,13]==np.max(predictions[:,13]):
+                day = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # day = text[0][j]
+            elif predicted_tags[j]==14:# and predictions[j,14]==np.max(predictions[:,14]):
+                month = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # month = text[0][j]
+            elif predicted_tags[j]==15:# and predictions[j,15]==np.max(predictions[:,15]):
+                year = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+                # year = text[0][j]
+        row['period_to'] = str(year) + '-' + str(month) + '-' + str(day)
+
+    for j in range(len(predicted_tags)-2):
+        if (predicted_tags[j:j+2]==[16, 17]).all():# and (predictions[j,16]==np.max(predictions[:,16]) or predictions[j,17]==np.max(predictions[:,17])):
+            # print('znalazłem kod pocztowy')
+            pre = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j])]
+            post = list(tokenizer.word_index.keys())[list(tokenizer.word_index.values()).index(text[0][j+1])]
+            # pre = text[0][j]
+            # post = text[0][j+1]
+            row['postal_code'] = str(pre) + '-' + str(post)
+            # print(str(pre) + '-' + str(post))
+    if row['postal_code'].values=='UNKNOWN':
+        row['postal_code'] = '00-000'
+
+    street = find_long_name_xgboost(predicted_tags, tokenizer, text[0], [1, 2])
+    skroty = ["ul ", "UL ", "Os ", "os ", "al ", "Al ", "pl ", "Pl ", "s "]
+    for skrot in skroty:
+        if skrot in street:
+            nowy_skrot = skrot.replace(' ', '') + '. '
+            street.replace(skrot, nowy_skrot)
+            break
+    row['street'] = street.title()
+
+    street_no = find_long_name_xgboost(predicted_tags, tokenizer, text[0], [3, 4])
+    row['street_no'] = street_no.title()
+
+    company = find_long_name_xgboost(predicted_tags, tokenizer, text[0], [5, 6])
+    SA = [' SA', ' sa', 'Spółka Akcyjna', 'spółka akcyjna', 'Sa']
+    S = [' S', ' s']
+    spolka = [' Spółka', ' spółka']
+    flaga = False
+    if company=='UNKNOWN':
+        flaga = True
+    while not flaga:
+        for word in SA:
+            if word in company:
+                flaga = True
+                break
+        for word in S:
+            if company[-2:] == word:
+                company = company.title() + 'A'
+                flaga = True
+                break
+        for word in spolka:
+            if company[-7:] == word:
+                company = company.title() + ' Akcyjna'
+                flaga = True
+                break
+        if not flaga:
+            company = company.title() + ' Spółka Akcyjna'
+            flaga = True
+    print(company)
+    row['company'] = company
+
+    people = "["
+    for ind in range(12):
+        # print(ind)
+        human = find_long_name_xgboost(predicted_tags, tokenizer, text[0], [21+ind*4, 22+ind*4]).title()
+        position = find_long_name_xgboost(predicted_tags, tokenizer, text[0], [24+ind*4, 23+ind*4]).title()
+        if human != 'Unknown':
+            people = people + "('" + drawing_date + "', '" + human.title() + "', '" + position.title() + "')"
+        else:
+            break
+    people = people + "]"
+    people = people.replace(')(', '), (')
+    # print(people)
+    row['people'] = people
+
+    # print(row)
+    return row
+
+def complete_row(row, full_raport, all_postal_codes):
+    if row.postal_code.values[0] == "00-000":
+        # print(row)
+        pattern = r'\d{2}-\d{3}'
+        postal_codes = re.findall(pattern, full_raport)
+        # print(postal_codes)
+        if len(postal_codes) == 1 or len(list(set(postal_codes))) == 1:
+            row['postal_code'] = postal_codes[0]
+        # print(row)
+        elif len(postal_codes) == 0:
+            print('W tym dokumencie nie ma żadnych kodów pocztowych')
+        else:
+            flaga = False
+            for j in range(len(all_postal_codes)):
+                # print(row["city"].values[0])
+                # print(all_postal_codes.iloc[j]["MIEJSCOWOŚĆ"])
+                # print(row["street"].values[0])
+                # print(all_postal_codes.iloc[j]["ADRES"])
+                if row["city"].values[0].lower() == all_postal_codes.iloc[j]["MIEJSCOWOŚĆ"].lower() and row["street"].values[0].lower() in all_postal_codes.iloc[j]["ADRES"].lower():
+                    row["postal_code"] = all_postal_codes.iloc[j]["KOD POCZTOWY"]
+                    flaga = True
+                    break
+            if not flaga:
+                flaga_tmp = False
+                for j in range(len(full_raport)):
+                    if row["company"].values[0] == full_raport[j]:
+                        for postal_code in postal_codes:
+                            if postal_code in full_raport[j:j+15]:
+                                row["postal_code"] = postal_code
+                                flaga_tmp = True
+                                break
+                    if flaga_tmp:
+                        break
+
+    if row.city.values[0] == "UNKNOWN" and row.postal_code.values[0]!='00-000':
+        # print(row)
+        # print(row.postal_code.values)
+        ind = all_postal_codes.index[all_postal_codes['KOD POCZTOWY'] == row.postal_code.values[0]].tolist()
+        # print(ind)
+        lista_miast = []
+        if len(ind)==1 or len(list(set(ind)))==1:
+            row['city'] = all_postal_codes['MIEJSCOWOŚĆ'].loc[ind]
+        elif len(ind) > 1:
+            for single_ind in ind:
+                lista_miast.append(all_postal_codes["MIEJSCOWOŚĆ"].loc[single_ind])
+            if len(set(lista_miast))==1:
+                row['city'] = set(lista_miast)[0]
+        # print(row)
     return row
 
 def create_sequences(full_sequence, seq_len, step):
